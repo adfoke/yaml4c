@@ -1,0 +1,8 @@
+app:
+  name: "Yaml4C Test"
+  version: 2.5
+  enabled: true
+  ports:
+    - 80
+    - 443
+    - 8080
