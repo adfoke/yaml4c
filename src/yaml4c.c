@@ -67,6 +67,8 @@ static y4c_node_t *y4c_parse_event(yaml_parser_t *parser, yaml_event_t *input_ev
                 
                 if (child) {
                     y4c_append_child(node, child);
+                } else {
+                    break;
                 }
             }
             break;
@@ -87,6 +89,9 @@ static y4c_node_t *y4c_parse_event(yaml_parser_t *parser, yaml_event_t *input_ev
                 char *key = NULL;
                 if (key_event.type == YAML_SCALAR_EVENT) {
                     key = strdup((char *)key_event.data.scalar.value);
+                } else {
+                    yaml_event_delete(&key_event);
+                    break;
                 }
                 yaml_event_delete(&key_event);
                 
@@ -101,10 +106,10 @@ static y4c_node_t *y4c_parse_event(yaml_parser_t *parser, yaml_event_t *input_ev
                 
                 if (child) {
                     if (key) child->key = key;
-                    else if (key) free(key); // Should not happen if logic correct
                     y4c_append_child(node, child);
                 } else {
                     if (key) free(key);
+                    break;
                 }
             }
             break;
@@ -155,6 +160,15 @@ y4c_node_t *y4c_load_file(const char *path, y4c_error_t *err) {
             if (yaml_parser_parse(&parser, &root_event)) {
                 root = y4c_parse_event(&parser, &root_event);
                 yaml_event_delete(&root_event);
+                
+                if (parser.error != YAML_NO_ERROR) {
+                    y4c_set_error(err, parser.problem, parser.problem_mark.line, parser.problem_mark.column);
+                    if (root) {
+                        y4c_free(root);
+                        root = NULL;
+                    }
+                }
+                
                 done = true; // Only parse first document
             }
         }
@@ -199,6 +213,15 @@ y4c_node_t *y4c_load_str(const char *str, size_t len, y4c_error_t *err) {
             if (yaml_parser_parse(&parser, &root_event)) {
                 root = y4c_parse_event(&parser, &root_event);
                 yaml_event_delete(&root_event);
+                
+                if (parser.error != YAML_NO_ERROR) {
+                    y4c_set_error(err, parser.problem, parser.problem_mark.line, parser.problem_mark.column);
+                    if (root) {
+                        y4c_free(root);
+                        root = NULL;
+                    }
+                }
+                
                 done = true;
             }
         }
