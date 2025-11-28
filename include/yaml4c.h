@@ -30,23 +30,32 @@ typedef struct y4c_node {
     struct y4c_node *prev; // Previous sibling node
 } y4c_node_t;
 
+/* Error handling structure */
+typedef struct {
+    char message[256]; // Error description
+    size_t line;       // Line number (0-based)
+    size_t column;     // Column number (0-based)
+} y4c_error_t;
+
 /* 4. Core API Contract */
 
 /* 4.1 Basic Operations */
 /**
  * Read file and parse into a tree.
  * @param path File path
+ * @param err Pointer to error struct to fill on failure (optional, can be NULL)
  * @return Root node of the parsed tree, or NULL on failure
  */
-y4c_node_t *y4c_load_file(const char *path);
+y4c_node_t *y4c_load_file(const char *path, y4c_error_t *err);
 
 /**
  * Parse from string.
  * @param str YAML string
  * @param len Length of the string
+ * @param err Pointer to error struct to fill on failure (optional, can be NULL)
  * @return Root node of the parsed tree, or NULL on failure
  */
-y4c_node_t *y4c_load_str(const char *str, size_t len);
+y4c_node_t *y4c_load_str(const char *str, size_t len, y4c_error_t *err);
 
 /**
  * Recursively free the node and all its children.

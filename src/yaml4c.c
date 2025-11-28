@@ -5,6 +5,15 @@
 #include <string.h>
 #include <strings.h> // for strcasecmp
 
+/* Helper: Set error details */
+static void y4c_set_error(y4c_error_t *err, const char *msg, size_t line, size_t col) {
+    if (err) {
+        snprintf(err->message, sizeof(err->message), "%s", msg ? msg : "Unknown error");
+        err->line = line;
+        err->column = col;
+    }
+}
+
 /* Helper: Create new node */
 static y4c_node_t *y4c_new_node(y4c_type_t type) {
     y4c_node_t *node = (y4c_node_t *)calloc(1, sizeof(y4c_node_t));
@@ -107,17 +116,19 @@ static y4c_node_t *y4c_parse_event(yaml_parser_t *parser, yaml_event_t *input_ev
     return node;
 }
 
-y4c_node_t *y4c_load_file(const char *path) {
+y4c_node_t *y4c_load_file(const char *path, y4c_error_t *err) {
+    if (err) memset(err, 0, sizeof(y4c_error_t));
+
     FILE *fh = fopen(path, "r");
     if (!fh) {
-        fprintf(stderr, "Failed to open file: %s\n", path);
+        y4c_set_error(err, "Failed to open file", 0, 0);
         return NULL;
     }
     
     yaml_parser_t parser;
     if (!yaml_parser_initialize(&parser)) {
         fclose(fh);
-        fprintf(stderr, "Failed to initialize yaml parser\n");
+        y4c_set_error(err, "Failed to initialize yaml parser", 0, 0);
         return NULL;
     }
     
@@ -129,7 +140,11 @@ y4c_node_t *y4c_load_file(const char *path) {
     while (!done) {
         yaml_event_t event;
         if (!yaml_parser_parse(&parser, &event)) {
-            fprintf(stderr, "Parser error: %s\n", parser.problem);
+            y4c_set_error(err, parser.problem, parser.problem_mark.line, parser.problem_mark.column);
+            if (root) {
+                y4c_free(root);
+                root = NULL;
+            }
             break;
         }
         
@@ -152,9 +167,14 @@ y4c_node_t *y4c_load_file(const char *path) {
     return root;
 }
 
-y4c_node_t *y4c_load_str(const char *str, size_t len) {
+y4c_node_t *y4c_load_str(const char *str, size_t len, y4c_error_t *err) {
+    if (err) memset(err, 0, sizeof(y4c_error_t));
+
     yaml_parser_t parser;
-    if (!yaml_parser_initialize(&parser)) return NULL;
+    if (!yaml_parser_initialize(&parser)) {
+        y4c_set_error(err, "Failed to initialize yaml parser", 0, 0);
+        return NULL;
+    }
     
     yaml_parser_set_input_string(&parser, (const unsigned char *)str, len);
     
@@ -163,7 +183,14 @@ y4c_node_t *y4c_load_str(const char *str, size_t len) {
     
     while (!done) {
         yaml_event_t event;
-        if (!yaml_parser_parse(&parser, &event)) break;
+        if (!yaml_parser_parse(&parser, &event)) {
+            y4c_set_error(err, parser.problem, parser.problem_mark.line, parser.problem_mark.column);
+            if (root) {
+                y4c_free(root);
+                root = NULL;
+            }
+            break;
+        }
         
         if (event.type == YAML_STREAM_END_EVENT) {
             done = true;

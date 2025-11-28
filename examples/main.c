@@ -7,9 +7,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    y4c_node_t *root = y4c_load_file(argv[1]);
+    y4c_error_t err;
+    y4c_node_t *root = y4c_load_file(argv[1], &err);
     if (!root) {
-        fprintf(stderr, "Failed to parse YAML file.\n");
+        fprintf(stderr, "Failed to parse YAML file: %s (Line: %zu, Col: %zu)\n", 
+                err.message, err.line + 1, err.column + 1);
         return 1;
     }
 
